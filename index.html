@@ -6,6 +6,35 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
     <script>
+		// Object containing text translations
+        const texts = {
+			en: {
+				title: 'Please confirm your double opt-in',
+				processingRequest: 'Processing your request...',
+				approveButton: 'Approve',
+				rejectButton: 'Reject'
+				// Add more text translations as needed
+			},
+			nl: {
+				title: 'Bevestig alstublieft uw dubbele opt-in',
+				processingRequest: 'Uw verzoek wordt verwerkt...',
+				approveButton: 'Goedkeuren',
+				rejectButton: 'Afwijzen'
+				// Add more text translations as needed
+			}
+		};
+		
+		function updateTexts(language) {
+            // Default to English if language is not supported
+            const langTexts = texts[language] || texts.en;
+
+            document.getElementById('title').innerText = langTexts.title;
+            document.getElementById('processingRequest').innerText = langTexts.processingRequest;
+			document.getElementById('approveButton').innerText = langTexts.approveButton;
+			document.getElementById('rejectButton').innerText = langTexts.rejectButton;
+            // Update other texts as needed
+        }
+	
         // Function to get query parameters
         function getQueryParam(name) {
             var urlParams = new URLSearchParams(window.location.search);
@@ -39,79 +68,143 @@
                     body: `requestToken=${requestToken}`
                 });
 
-                if (response.ok) {
-                    alert('Submission successful');
-                } else {
-                    alert('Submission failed');
-                }
+				if (response.ok) {
+					displayResponse('Success!', `${response.status} Your request was processed successfully.`, 'success');
+				} else {
+					const responseBody = await response.text();
+					displayResponse('Error', response.status + " " + responseBody, 'warning',);
+				}
             } catch (error) {
-                alert('An error occurred: ' + error.message);
+                displayResponse('Error', 'An error occurred: ' + error.message, 'danger');
             } finally {
                 showLoading(false); // Hide loading indicator
             }
         }
 
-        // Decode JWT and display its contents in a prettified manner
+		function displayResponse(title, message, type, data = null) {
+			console.log('Displaying response:', title, message, type); // Debugging log
+		
+			const responseContainer = document.getElementById('responseContainer');
+			responseContainer.style.display = 'block'; // Ensure the container is visible
+			responseContainer.className = `alert alert-${type}`;
+			responseContainer.innerHTML = `<strong>${title}</strong> ${message}`;
+			
+			if (data) {
+				const formattedData = JSON.stringify(data, null, 4);
+				responseContainer.innerHTML += `<pre>${formattedData}</pre>`;
+			}
+		}
+		
+
         function displayTokenContent() {
-            var requestToken = getQueryParam('requestToken');
-            if (requestToken) {
-                document.getElementById('requestToken').value = requestToken;
-                try {
-                    var decodedToken = jwt_decode(requestToken);
-                    document.getElementById('tokenContent').innerText = JSON.stringify(decodedToken, null, 4); // Prettify the token
-                } catch (error) {
-                    document.getElementById('tokenContent').innerText = 'Invalid token or unable to decode';
-                }
-            }
-        }
+			var requestToken = getQueryParam('requestToken');
+            var language = getQueryParam('language') || 'en'; // Default to English
+            updateTexts(language);
+			if (requestToken) {
+				document.getElementById('requestToken').value = requestToken;
+				try {
+					var decodedToken = jwt_decode(requestToken);
+					var formattedToken = JSON.stringify(decodedToken, null, 4);
+					document.getElementById('tokenContent').innerHTML = syntaxHighlight(formattedToken);
+				} catch (error) {
+					document.getElementById('tokenContent').innerText = 'Invalid token or unable to decode';
+				}
+			}
+		}
+
+		function syntaxHighlight(json) {
+			json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+			return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|true|false|null|-?\d+(\.\d+)?([eE][+-]?\d+)?)/g, function(match) {
+				var cls = 'number';
+				if (/^"/.test(match)) {
+					if (/:$/.test(match)) {
+						cls = 'key';
+					} else {
+						cls = 'string';
+					}
+				} else if (/true|false/.test(match)) {
+					cls = 'boolean';
+				} else if (/null/.test(match)) {
+					cls = 'null';
+				}
+				return '<span class="' + cls + '">' + match + '</span>';
+			});
+		}
+
 
         document.addEventListener('DOMContentLoaded', displayTokenContent);
     </script>
     <style>
-        .form-container {
-            max-width: 400px;
-            margin: 50px auto;
-            padding: 20px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
+		.alert pre {
+			background-color: #f7f7f7;
+			border: 1px solid #ddd;
+			border-radius: 5px;
+			padding: 10px;
+			overflow-x: auto;
+		}
+		.form-container {
+			max-width: 800px; /* Increased max-width */
+			margin: 50px auto;
+			padding: 20px;
+			box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+		}
+		.token-content {
+			margin-top: 20px;
+			background-color: #f7f7f7;
+			padding: 10px;
+			border: 1px solid #ddd;
+			border-radius: 5px;
+			word-wrap: break-word;
+			white-space: pre-wrap;
+			max-width: 100%; /* Set max-width to 100% of the container */
+			overflow-x: auto; /* Add horizontal scroll for overflow */
+		}
         .btn-custom {
             width: 100%;
             margin-top: 10px;
-        }
-        .token-content {
-            margin-top: 20px;
-            background-color: #f7f7f7;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            word-wrap: break-word;
-            white-space: pre-wrap;
         }
         #loadingIndicator {
             display: none;
             text-align: center;
             margin-top: 20px;
         }
+		.key {
+			color: brown;
+		}
+		.string {
+			color: green;
+		}
+		.number {
+			color: darkorange;
+		}
+		.boolean {
+			color: blue;
+		}
+		.null {
+			color: magenta;
+		}
     </style>
 </head>
 <body>
 
 <div class="container form-container">
-    <h2 class="text-center mb-4">Please confirm your double opt-in</h2>
+    <h2 id="title" class="text-center mb-4"></h2>
+
+	<div id="responseContainer" class="alert" style="display:none;"></div> <!-- Response container -->
     
     <div id="tokenContent" class="token-content"></div>
 
     <form id="optInForm" method="POST" class="form-group">
         <input type="hidden" id="requestToken" name="requestToken" value="">
-        <button type="button" class="btn btn-success btn-custom" onclick="submitForm('https://2wzxeyvu4j.execute-api.eu-west-1.amazonaws.com/dev/api/v1/user-consents/confirm/attributes')">Approve</button>
-        <button type="button" class="btn btn-danger btn-custom" onclick="submitForm('https://2wzxeyvu4j.execute-api.eu-west-1.amazonaws.com/dev/api/v1/user-consents/reject/attributes')">Reject</button>
+        <button type="button" id="approveButton" class="btn btn-success btn-custom" onclick="submitForm('ttps://console.test.onewelcome.io/consent/api/v1/user-consents/confirm/attributes')"></button>
+		<button type="button" id="rejectButton" class="btn btn-danger btn-custom" onclick="submitForm('ttps://console.test.onewelcome.io/consent/api/v1/user-consents/reject/attributes')"></button>
     </form>
 
     <div id="loadingIndicator">
         <div class="spinner-border text-primary" role="status">
             <span class="sr-only">Loading...</span>
         </div>
-        <p>Processing your request...</p>
+        <p id="processingRequest"></p>
     </div>
 </div>
 
